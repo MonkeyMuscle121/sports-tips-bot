@@ -14,18 +14,16 @@ tree = app_commands.CommandTree(client)
 
 xai_client = Client(api_key=os.getenv("XAI_API_KEY"))
 
-@tree.command(name="tips", description="Get 4 savage hot tips (next 48h only) — only works in 🏆-sports-tips")
+@tree.command(name="tips", description="Get 4 savage hot tips (next 48h only) — only in 🏆-sports-tips")
 @app_commands.describe(
     sport="Sport (e.g. football, nba, f1, tennis, nfl)",
     event="Specific event or league (optional)"
 )
 async def tips(interaction: discord.Interaction, sport: str, event: str = None):
-    # === CHANNEL RESTRICTION ===
     channel_name = interaction.channel.name.lower()
     if "sports" not in channel_name or "tips" not in channel_name:
         await interaction.response.send_message(
-            "❌ This command only works in the **🏆-sports-tips** channel!\n"
-            "Go there and try again 🚀",
+            "❌ This command only works in the **🏆-sports-tips** channel!", 
             ephemeral=True
         )
         return
@@ -38,47 +36,62 @@ async def tips(interaction: discord.Interaction, sport: str, event: str = None):
         
         context = f"""
         Current UTC time: {now.strftime('%Y-%m-%d %H:%M')}
-        You MUST only consider real events happening before {cutoff.strftime('%Y-%m-%d %H:%M UTC')}.
-        
+        You MUST ONLY use events happening between now and {cutoff.strftime('%Y-%m-%d %H:%M UTC')}.
+        If there are no real upcoming events in the next 48 hours for this sport, say exactly: "NO_UPCOMING_EVENTS"
+
         Sport: {sport}
         Specific request: {event or 'major upcoming events'}
         
-        You are an expert savage sports tipster. Be brutally honest, funny, and witty.
-        Analyze form, history, weather, stats, injuries, and motivation.
-        Give EXACTLY 4 hot tips.
+        You are a brutally savage sports tipster. Be funny, witty, and roasting.
+        Analyze form, history, weather, stats, etc.
+        Give EXACTLY 4 hot tips if events exist.
         
-        Format exactly like this:
-        **🔥 Tip 1: [Short bold title]**
-        Savage description with emojis...
+        Format EXACTLY like this (use 🔥 emoji for each tip):
         
-        Only talk about events in the next 48 hours.
+        **🔥 Tip 1: Team A vs Team B (League)**
+        Savage description here. Make it brutal and entertaining. Add relevant emojis at the end.
+        
+        Only reference real events in the next 48 hours.
         """
-        
+
         chat = xai_client.chat.create(model="grok-4.3")
-        chat.append(system("You are a brutally honest, savage, and hilarious sports tipster."))
+        chat.append(system("You are a savage, hilarious sports tipster. Always stay current."))
         chat.append(user(context))
         
         response = chat.sample()
-        ai_output = response.content
-        
+        ai_output = response.content.strip()
+
+        # Check if no upcoming events
+        if "NO_UPCOMING_EVENTS" in ai_output or "no upcoming" in ai_output.lower():
+            embed = discord.Embed(
+                title="🏆 SPORTS TIPS — NEXT 48 HOURS",
+                description=f"**Sport:** {sport.upper()}\n**Query:** {event or 'Major Events'}",
+                color=0xff4500
+            )
+            embed.add_field(name="Status", value="❌ There are no options within the next 48 hours.", inline=False)
+            embed.set_footer(text="🏆 Sports Tips Bot • Powered by Grok")
+            await interaction.followup.send(embed=embed)
+            return
+
+        # Create embed matching your image style
         embed = discord.Embed(
             title="🔥 SPORTS TIPS — NEXT 48 HOURS",
             description=f"**Sport:** {sport.upper()}\n**Query:** {event or 'Major Events'}",
             color=0xff4500
         )
-        embed.add_field(name="Grok's Savage Picks", value=ai_output[:1024], inline=False)
+        embed.add_field(name="Grok's Savage Picks", value=ai_output[:2000], inline=False)
         embed.set_footer(text="🏆 Sports Tips Bot • Powered by Grok • Gamble responsibly")
         embed.timestamp = datetime.utcnow()
-        
+
         await interaction.followup.send(embed=embed)
         
     except Exception as e:
-        await interaction.followup.send(f"❌ Oops! Error: {str(e)[:300]}")
+        await interaction.followup.send(f"❌ Error: {str(e)[:300]}")
 
 @client.event
 async def on_ready():
     print(f'✅ {client.user} is online!')
     await tree.sync()
-    print("✅ Slash commands synced!")
+    print("✅ Commands synced!")
 
 client.run(os.getenv("DISCORD_TOKEN"))
