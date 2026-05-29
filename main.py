@@ -16,7 +16,7 @@ xai_client = Client(api_key=os.getenv("XAI_API_KEY"))
 
 @tree.command(name="tips", description="Get 4 savage hot betting tips (next 72h only)")
 @app_commands.describe(
-    sport="Sport (e.g. football, nba, f1, tennis)",
+    sport="Sport (e.g. football, tennis, nba, f1, nfl)",
     event="Specific event or league (optional)"
 )
 async def tips(interaction: discord.Interaction, sport: str, event: str = None):
@@ -33,36 +33,31 @@ async def tips(interaction: discord.Interaction, sport: str, event: str = None):
         
         context = f"""
         Current date and time: {now.strftime('%Y-%m-%d %H:%M UTC')}
-        You MUST use real upcoming matches happening strictly before {cutoff.strftime('%Y-%m-%d %H:%M UTC')}.
-
-        For football right now, there is a major event: Arsenal vs PSG in the UEFA Champions League Final on May 30.
+        You MUST ONLY use real upcoming events or matches happening strictly before {cutoff.strftime('%Y-%m-%d %H:%M UTC')}.
 
         Sport: {sport}
         Query: {event or 'major upcoming events'}
 
-        If there are truly no major events, reply with exactly: "NO_UPCOMING_EVENTS"
-        Otherwise, ALWAYS give EXACTLY 4 hot betting tips using real upcoming matches.
+        If there are truly no major events in the next 72 hours for this sport, reply with exactly: "NO_UPCOMING_EVENTS"
 
-        Each tip must include a specific betting recommendation like:
-        - Handicap (e.g. Arsenal -1)
-        - Over/Under goals
-        - BTTS, winner, correct score range, etc.
+        Otherwise, ALWAYS give EXACTLY 4 hot betting tips using real upcoming matches.
+        Each tip must include a specific betting recommendation (handicap, over/under, winner, BTTS, etc.).
 
         Format exactly like this:
-        **🔥 Tip 1: Arsenal vs PSG (UEFA Champions League Final)**
-        Arsenal to win or Arsenal -0.5 handicap. Savage funny description here. End with emojis.
+        **🔥 Tip 1: Player/Team A vs Player/Team B (Competition)**
+        Specific betting tip + savage, funny roasting description. End with relevant emojis.
 
-        Be savage, witty and roasting. Stay current.
+        Be savage, witty, and entertaining. Focus on current live/upcoming events only.
         """
 
         chat = xai_client.chat.create(model="grok-4.3")
-        chat.append(system("You are an expert savage sports betting tipster. Use only real upcoming events in the next 72 hours. Always provide 4 tips when possible."))
+        chat.append(system("You are a savage sports betting tipster. Always find real upcoming events for the requested sport in the next 72 hours. Be creative and accurate."))
         chat.append(user(context))
         
         response = chat.sample()
         ai_output = response.content.strip()
 
-        if "NO_UPCOMING_EVENTS" in ai_output.upper() or "no major options" in ai_output.lower():
+        if "NO_UPCOMING_EVENTS" in ai_output.upper() or "no major" in ai_output.lower():
             embed = discord.Embed(
                 title="🏆 SPORTS TIPS — NEXT 72 HOURS",
                 description=f"**Sport:** {sport.upper()}\n**Query:** {event or 'Major Events'}",
@@ -73,7 +68,6 @@ async def tips(interaction: discord.Interaction, sport: str, event: str = None):
             await interaction.followup.send(embed=embed)
             return
 
-        # Main embed
         embed = discord.Embed(
             title="🏆 SPORTS TIPS — NEXT 72 HOURS",
             description=f"**Sport:** {sport.upper()}\n**Query:** {event or 'Major Events'}",
