@@ -16,7 +16,7 @@ xai_client = Client(api_key=os.getenv("XAI_API_KEY"))
 
 @tree.command(name="tips", description="Get 4 savage hot betting tips (next 72h only)")
 @app_commands.describe(
-    sport="Sport (e.g. football, tennis, nba, f1, nfl)",
+    sport="Sport (e.g. football, tennis, nba, f1, nfl, ufc)",
     event="Specific event or league (optional)"
 )
 async def tips(interaction: discord.Interaction, sport: str, event: str = None):
@@ -32,36 +32,33 @@ async def tips(interaction: discord.Interaction, sport: str, event: str = None):
         cutoff = now + timedelta(hours=72)
         
         context = f"""
-CURRENT DATE: May 29, 2026
-CURRENT TIME: {now.strftime('%H:%M UTC')}
+You are a highly accurate, professional savage sports betting tipster.
 
-You are a professional savage sports betting tipster.
+CURRENT DATE AND TIME: {now.strftime('%Y-%m-%d %H:%M UTC')}
 
 Sport: {sport}
 Query: {event or 'major upcoming events'}
 
-You MUST find REAL upcoming matches in the next 72 hours.
+Task:
+- Identify REAL upcoming matches/fights/events happening strictly within the next 72 hours (before {cutoff.strftime('%Y-%m-%d %H:%M UTC')}).
+- For each selected match, deeply analyse form, head-to-head, weather, player/fighter news, injuries, motivation, and key stats.
+- Provide EXACTLY 4 hot betting tips with **specific recommendations** (handicap, over/under, moneyline, props, etc.).
+- ONLY use real, active, non-cancelled events. Do not hallucinate players or matches.
 
-Known real events right now:
-- Arsenal vs PSG - UEFA Champions League Final on May 30, 2026
-- Roland Garros (French Open) - multiple matches on May 29, 30, 31
+Be savage, witty, brutal, and entertaining in your descriptions.
 
-Rules:
-- Only use real upcoming events.
-- Analyse form, H2H, weather, player news, stats, motivation.
-- Give EXACTLY 4 hot betting tips with **specific betting recommendations** (handicap, over/under, winner, BTTS, etc.).
-- Be savage, witty, brutal and funny.
+Output format exactly (no extra text before or after):
 
-Output format (exactly):
-
-**🔥 Tip 1: Team/Player A vs Team/Player B (Competition)**
+**🔥 Tip 1: Team/Player A vs Team/Player B (Event Name)**
 Specific betting tip. Savage analysis and roasting. End with emojis.
 
-Do the same for Tip 2, 3 and 4.
+**🔥 Tip 2:** ...
+**🔥 Tip 3:** ...
+**🔥 Tip 4:** ...
 """
 
         chat = xai_client.chat.create(model="grok-4.3")
-        chat.append(system("You are a savage sports betting tipster. Always provide exactly 4 tips using real upcoming events. Be accurate and never hallucinate fixtures."))
+        chat.append(system("You are an expert savage sports betting tipster. Always base tips on real upcoming events only. Never hallucinate fixtures or cancelled matches. Provide exactly 4 tips."))
         chat.append(user(context))
         
         response = chat.sample()
