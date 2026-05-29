@@ -32,35 +32,39 @@ async def tips(interaction: discord.Interaction, sport: str, event: str = None):
         cutoff = now + timedelta(hours=72)
         
         context = f"""
-You are a savage, highly accurate sports betting tipster.
-
 CURRENT DATE: May 29, 2026
 CURRENT TIME: {now.strftime('%H:%M UTC')}
+
+You are a savage, professional sports betting tipster.
 
 Sport: {sport}
 Query: {event or 'major upcoming events'}
 
-REAL UPCOMING EVENTS (May 29-31 2026):
-- UEFA Champions League Final: Arsenal vs PSG on May 30
+REAL EVENTS RIGHT NOW:
+- UEFA Champions League Final: Arsenal vs PSG (May 30)
 - UFC Fight Night on May 30 (multiple fights)
-- Roland Garros (French Open) ongoing with matches
+- Roland Garros (French Open) ongoing
 
-Your job:
-- Find REAL upcoming matches/fights in the next 72 hours for the requested sport.
-- Deeply analyse form, H2H, weather, player/fighter news, injuries, motivation, and stats.
-- Give EXACTLY 4 hot betting tips with specific recommendations (handicap, over/under, winner, BTTS, rounds, etc.).
-- If truly no events, reply with "NO_UPCOMING_EVENTS".
+Task:
+- Find REAL upcoming events in the next 72 hours for the requested sport.
+- If there are real events, ALWAYS give EXACTLY 4 hot betting tips.
+- Only reply with "NO_UPCOMING_EVENTS" if you are 100% sure there are genuinely no matches/fights/events in the next 72 hours for that sport.
 
-Output format exactly (no extra text):
+For each tip:
+- Give a specific betting recommendation
+- Analyse form, H2H, news, stats etc.
+- Be savage, witty, brutal and funny.
+
+Output format exactly:
 
 **🔥 Tip 1: Fighter/Team A vs Fighter/Team B (Event)**
-Specific betting tip. Savage, witty, brutal roasting description. End with emojis.
+Specific betting tip. Savage analysis. End with emojis.
 
-Do the same for Tip 2, 3 and 4.
+(Do the same for Tip 2, 3 and 4)
 """
 
         chat = xai_client.chat.create(model="grok-4.3")
-        chat.append(system("You are a savage sports betting tipster. Always provide exactly 4 tips using real upcoming events. Never hallucinate. Be analytical and funny."))
+        chat.append(system("You are a savage sports betting tipster. Always provide exactly 4 tips when real events exist. Only use 'NO_UPCOMING_EVENTS' when truly nothing is happening."))
         chat.append(user(context))
         
         response = chat.sample()
