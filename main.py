@@ -20,13 +20,9 @@ xai_client = Client(api_key=os.getenv("XAI_API_KEY"))
     event="Specific event or league (optional)"
 )
 async def tips(interaction: discord.Interaction, sport: str, event: str = None):
-    # Channel restriction
     channel_name = interaction.channel.name.lower()
     if "sports" not in channel_name or "tips" not in channel_name:
-        await interaction.response.send_message(
-            "❌ This command only works in the **🏆-sports-tips** channel!", 
-            ephemeral=True
-        )
+        await interaction.response.send_message("❌ This command only works in the **🏆-sports-tips** channel!", ephemeral=True)
         return
 
     await interaction.response.defer(thinking=True)
@@ -36,47 +32,39 @@ async def tips(interaction: discord.Interaction, sport: str, event: str = None):
         cutoff = now + timedelta(hours=72)
         
         context = f"""
-You are a professional savage sports betting tipster.
-
 CURRENT DATE AND TIME: {now.strftime('%Y-%m-%d %H:%M UTC')}
-You MUST only use REAL upcoming events happening before {cutoff.strftime('%Y-%m-%d %H:%M UTC')}.
 
-Sport requested: {sport}
-User query: {event or 'major upcoming events'}
+You are an expert savage sports betting tipster with up-to-date knowledge.
 
-Known real major events right now (May 29 2026):
-- UEFA Champions League Final: Arsenal vs PSG (May 30)
-- Roland Garros / French Open is currently running with daily matches
+Sport: {sport}
+Query: {event or 'major upcoming events'}
 
-Rules:
-- ONLY use real upcoming matches within the next 72 hours.
-- NEVER use past events.
-- NEVER invent or hallucinate matches.
-- If you truly cannot find any real upcoming events, reply with exactly "NO_UPCOMING_EVENTS".
-- Otherwise ALWAYS give EXACTLY 4 tips.
+Task:
+- Search your knowledge for REAL upcoming matches or events happening strictly before {cutoff.strftime('%Y-%m-%d %H:%M UTC')}.
+- Focus on actual scheduled fixtures within the next 72 hours.
+- If there are real events, give EXACTLY 4 hot betting tips.
+- If truly nothing is happening, reply with exactly "NO_UPCOMING_EVENTS".
 
-Each tip must contain:
-- A clear betting recommendation (e.g. Arsenal -1 handicap, Over 2.5 goals, Player to win, etc.)
+Each tip must include:
+- Match name
+- Specific betting recommendation (e.g. -1 handicap, Over 2.5 goals, Player to win, etc.)
 
-Output format must be exactly like this:
+Output format exactly like this (no extra text before or after the tips):
 
-**🔥 Tip 1: Team A vs Team B (Competition Name)**
-Specific betting tip. Savage, funny, brutal roasting description. End with relevant emojis.
+**🔥 Tip 1: Team A vs Team B (Competition)**
+Specific betting tip. Savage, funny, brutal roasting description. End with emojis.
 
 **🔥 Tip 2: ...**
-(and so on for all 4 tips)
-
-Be savage, witty, and entertaining.
+(continue for Tip 3 and Tip 4)
 """
 
         chat = xai_client.chat.create(model="grok-4.3")
-        chat.append(system("You are a brutally savage and hilarious sports betting tipster. Always stay accurate to real upcoming events only."))
+        chat.append(system("You are a savage, witty sports betting tipster. Always find real upcoming events in the next 72 hours and provide exactly 4 tips when possible. Never hallucinate matches. Be accurate."))
         chat.append(user(context))
         
         response = chat.sample()
         ai_output = response.content.strip()
 
-        # Check for no events
         if "NO_UPCOMING_EVENTS" in ai_output.upper():
             embed = discord.Embed(
                 title="🏆 SPORTS TIPS — NEXT 72 HOURS",
@@ -89,7 +77,7 @@ Be savage, witty, and entertaining.
             await interaction.followup.send(embed=embed)
             return
 
-        # Main response
+        # Main embed - no truncation
         embed = discord.Embed(
             title="🏆 SPORTS TIPS — NEXT 72 HOURS",
             description=f"**Sport:** {sport.upper()}\n**Query:** {event or 'Major Events'}",
@@ -102,12 +90,12 @@ Be savage, witty, and entertaining.
         await interaction.followup.send(embed=embed)
         
     except Exception as e:
-        await interaction.followup.send(f"❌ Error generating tips: {str(e)[:500]}")
+        await interaction.followup.send(f"❌ Error: {str(e)[:500]}")
 
 @client.event
 async def on_ready():
     print(f'✅ {client.user} is online!')
     await tree.sync()
-    print("✅ Slash commands synced globally!")
+    print("✅ Commands synced!")
 
 client.run(os.getenv("DISCORD_TOKEN"))
