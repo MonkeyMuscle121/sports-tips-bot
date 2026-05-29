@@ -14,7 +14,7 @@ tree = app_commands.CommandTree(client)
 
 xai_client = Client(api_key=os.getenv("XAI_API_KEY"))
 
-@tree.command(name="tips", description="Get 4 savage hot tips (next 48h only)")
+@tree.command(name="tips", description="Get 4 savage hot betting tips (next 72h only)")
 @app_commands.describe(
     sport="Sport (e.g. football, nba, f1, tennis)",
     event="Specific event or league (optional)"
@@ -29,47 +29,47 @@ async def tips(interaction: discord.Interaction, sport: str, event: str = None):
     
     try:
         now = datetime.utcnow()
-        cutoff = now + timedelta(hours=48)
+        cutoff = now + timedelta(hours=72)
         
         context = f"""
         Current UTC time: {now.strftime('%Y-%m-%d %H:%M')}
-        You MUST consider major real events happening before {cutoff.strftime('%Y-%m-%d %H:%M UTC')}.
-
-        IMPORTANT: Today is around May 29-30 2026. The UEFA Champions League Final (Arsenal vs PSG) is tomorrow May 30. Always include big finals, derbies, or major matches in the next 48 hours.
+        You MUST ONLY use real, actual upcoming events happening strictly between now and {cutoff.strftime('%Y-%m-%d %H:%M UTC')}.
 
         Sport: {sport}
         Query: {event or 'major upcoming events'}
 
-        If there are absolutely ZERO real major events, reply with exactly: "NO_UPCOMING_EVENTS"
-        Otherwise, ALWAYS give EXACTLY 4 savage hot tips.
+        If there are no real major upcoming events in the next 72 hours, reply with exactly: "NO_UPCOMING_EVENTS"
 
-        You are a savage, funny, roasting sports tipster. Be brutal and entertaining.
-        Use this exact format for each tip:
+        Otherwise, give EXACTLY 4 hot **betting tips** based on real upcoming matches.
+        Each tip must include a specific betting recommendation (e.g. Team A -1.5 handicap, Over 2.5 goals, BTTS, correct score, etc.).
+
+        Format each tip exactly like this:
         **🔥 Tip 1: Team A vs Team B (Competition)**
-        Savage description. Add emojis at the end.
+        Specific betting tip + savage, funny roasting description. End with relevant emojis.
+
+        Stay strictly current. Do not use past events.
         """
 
         chat = xai_client.chat.create(model="grok-4.3")
-        chat.append(system("You are a brutally savage and hilarious sports tipster who always knows current major events."))
+        chat.append(system("You are a savage, funny sports betting tipster. Always use only real upcoming events in the next 72 hours. Never use old matches."))
         chat.append(user(context))
         
         response = chat.sample()
         ai_output = response.content.strip()
 
-        if "NO_UPCOMING_EVENTS" in ai_output.upper() or "no upcoming" in ai_output.lower():
+        if "NO_UPCOMING_EVENTS" in ai_output.upper() or "no upcoming" in ai_output.lower() or len(ai_output) < 100:
             embed = discord.Embed(
-                title="🏆 SPORTS TIPS — NEXT 48 HOURS",
+                title="🏆 SPORTS TIPS — NEXT 72 HOURS",
                 description=f"**Sport:** {sport.upper()}\n**Query:** {event or 'Major Events'}",
                 color=0xff4500
             )
-            embed.add_field(name="Status", value="❌ There are no options within the next 48 hours.", inline=False)
+            embed.add_field(name="Status", value="❌ There are no major options within the next 72 hours.", inline=False)
             embed.set_footer(text="🏆 Sports Tips Bot • Powered by Grok")
             await interaction.followup.send(embed=embed)
             return
 
-        # Nice embed matching your screenshot
         embed = discord.Embed(
-            title="🏆 SPORTS TIPS — NEXT 48 HOURS",
+            title="🏆 SPORTS TIPS — NEXT 72 HOURS",
             description=f"**Sport:** {sport.upper()}\n**Query:** {event or 'Major Events'}",
             color=0xff4500
         )
