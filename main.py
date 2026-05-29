@@ -32,32 +32,37 @@ async def tips(interaction: discord.Interaction, sport: str, event: str = None):
         cutoff = now + timedelta(hours=72)
         
         context = f"""
-        Current UTC time: {now.strftime('%Y-%m-%d %H:%M')}
-        You MUST ONLY use real, actual upcoming events happening strictly between now and {cutoff.strftime('%Y-%m-%d %H:%M UTC')}.
+        Current date and time: {now.strftime('%Y-%m-%d %H:%M UTC')}
+        You MUST use real upcoming matches happening strictly before {cutoff.strftime('%Y-%m-%d %H:%M UTC')}.
+
+        For football right now, there is a major event: Arsenal vs PSG in the UEFA Champions League Final on May 30.
 
         Sport: {sport}
         Query: {event or 'major upcoming events'}
 
-        If there are no real major upcoming events in the next 72 hours, reply with exactly: "NO_UPCOMING_EVENTS"
+        If there are truly no major events, reply with exactly: "NO_UPCOMING_EVENTS"
+        Otherwise, ALWAYS give EXACTLY 4 hot betting tips using real upcoming matches.
 
-        Otherwise, give EXACTLY 4 hot **betting tips** based on real upcoming matches.
-        Each tip must include a specific betting recommendation (e.g. Team A -1.5 handicap, Over 2.5 goals, BTTS, correct score, etc.).
+        Each tip must include a specific betting recommendation like:
+        - Handicap (e.g. Arsenal -1)
+        - Over/Under goals
+        - BTTS, winner, correct score range, etc.
 
-        Format each tip exactly like this:
-        **🔥 Tip 1: Team A vs Team B (Competition)**
-        Specific betting tip + savage, funny roasting description. End with relevant emojis.
+        Format exactly like this:
+        **🔥 Tip 1: Arsenal vs PSG (UEFA Champions League Final)**
+        Arsenal to win or Arsenal -0.5 handicap. Savage funny description here. End with emojis.
 
-        Stay strictly current. Do not use past events.
+        Be savage, witty and roasting. Stay current.
         """
 
         chat = xai_client.chat.create(model="grok-4.3")
-        chat.append(system("You are a savage, funny sports betting tipster. Always use only real upcoming events in the next 72 hours. Never use old matches."))
+        chat.append(system("You are an expert savage sports betting tipster. Use only real upcoming events in the next 72 hours. Always provide 4 tips when possible."))
         chat.append(user(context))
         
         response = chat.sample()
         ai_output = response.content.strip()
 
-        if "NO_UPCOMING_EVENTS" in ai_output.upper() or "no upcoming" in ai_output.lower() or len(ai_output) < 100:
+        if "NO_UPCOMING_EVENTS" in ai_output.upper() or "no major options" in ai_output.lower():
             embed = discord.Embed(
                 title="🏆 SPORTS TIPS — NEXT 72 HOURS",
                 description=f"**Sport:** {sport.upper()}\n**Query:** {event or 'Major Events'}",
@@ -68,6 +73,7 @@ async def tips(interaction: discord.Interaction, sport: str, event: str = None):
             await interaction.followup.send(embed=embed)
             return
 
+        # Main embed
         embed = discord.Embed(
             title="🏆 SPORTS TIPS — NEXT 72 HOURS",
             description=f"**Sport:** {sport.upper()}\n**Query:** {event or 'Major Events'}",
