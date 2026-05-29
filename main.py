@@ -14,18 +14,15 @@ tree = app_commands.CommandTree(client)
 
 xai_client = Client(api_key=os.getenv("XAI_API_KEY"))
 
-@tree.command(name="tips", description="Get 4 savage hot tips (next 48h only) — only in 🏆-sports-tips")
+@tree.command(name="tips", description="Get 4 savage hot tips (next 48h only)")
 @app_commands.describe(
-    sport="Sport (e.g. football, nba, f1, tennis, nfl)",
+    sport="Sport (e.g. football, nba, f1, tennis)",
     event="Specific event or league (optional)"
 )
 async def tips(interaction: discord.Interaction, sport: str, event: str = None):
     channel_name = interaction.channel.name.lower()
     if "sports" not in channel_name or "tips" not in channel_name:
-        await interaction.response.send_message(
-            "❌ This command only works in the **🏆-sports-tips** channel!", 
-            ephemeral=True
-        )
+        await interaction.response.send_message("❌ This command only works in the **🏆-sports-tips** channel!", ephemeral=True)
         return
 
     await interaction.response.defer(thinking=True)
@@ -36,33 +33,30 @@ async def tips(interaction: discord.Interaction, sport: str, event: str = None):
         
         context = f"""
         Current UTC time: {now.strftime('%Y-%m-%d %H:%M')}
-        You MUST ONLY use events happening between now and {cutoff.strftime('%Y-%m-%d %H:%M UTC')}.
-        If there are no real upcoming events in the next 48 hours for this sport, say exactly: "NO_UPCOMING_EVENTS"
+        You MUST consider major real events happening before {cutoff.strftime('%Y-%m-%d %H:%M UTC')}.
+
+        IMPORTANT: Today is around May 29-30 2026. The UEFA Champions League Final (Arsenal vs PSG) is tomorrow May 30. Always include big finals, derbies, or major matches in the next 48 hours.
 
         Sport: {sport}
-        Specific request: {event or 'major upcoming events'}
-        
-        You are a brutally savage sports tipster. Be funny, witty, and roasting.
-        Analyze form, history, weather, stats, etc.
-        Give EXACTLY 4 hot tips if events exist.
-        
-        Format EXACTLY like this (use 🔥 emoji for each tip):
-        
-        **🔥 Tip 1: Team A vs Team B (League)**
-        Savage description here. Make it brutal and entertaining. Add relevant emojis at the end.
-        
-        Only reference real events in the next 48 hours.
+        Query: {event or 'major upcoming events'}
+
+        If there are absolutely ZERO real major events, reply with exactly: "NO_UPCOMING_EVENTS"
+        Otherwise, ALWAYS give EXACTLY 4 savage hot tips.
+
+        You are a savage, funny, roasting sports tipster. Be brutal and entertaining.
+        Use this exact format for each tip:
+        **🔥 Tip 1: Team A vs Team B (Competition)**
+        Savage description. Add emojis at the end.
         """
 
         chat = xai_client.chat.create(model="grok-4.3")
-        chat.append(system("You are a savage, hilarious sports tipster. Always stay current."))
+        chat.append(system("You are a brutally savage and hilarious sports tipster who always knows current major events."))
         chat.append(user(context))
         
         response = chat.sample()
         ai_output = response.content.strip()
 
-        # Check if no upcoming events
-        if "NO_UPCOMING_EVENTS" in ai_output or "no upcoming" in ai_output.lower():
+        if "NO_UPCOMING_EVENTS" in ai_output.upper() or "no upcoming" in ai_output.lower():
             embed = discord.Embed(
                 title="🏆 SPORTS TIPS — NEXT 48 HOURS",
                 description=f"**Sport:** {sport.upper()}\n**Query:** {event or 'Major Events'}",
@@ -73,9 +67,9 @@ async def tips(interaction: discord.Interaction, sport: str, event: str = None):
             await interaction.followup.send(embed=embed)
             return
 
-        # Create embed matching your image style
+        # Nice embed matching your screenshot
         embed = discord.Embed(
-            title="🔥 SPORTS TIPS — NEXT 48 HOURS",
+            title="🏆 SPORTS TIPS — NEXT 48 HOURS",
             description=f"**Sport:** {sport.upper()}\n**Query:** {event or 'Major Events'}",
             color=0xff4500
         )
