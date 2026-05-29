@@ -32,37 +32,51 @@ async def tips(interaction: discord.Interaction, sport: str, event: str = None):
         cutoff = now + timedelta(hours=72)
         
         context = f"""
-You are a highly accurate, professional savage sports betting tipster.
+You are a savage, highly accurate sports betting tipster.
 
-CURRENT DATE AND TIME: {now.strftime('%Y-%m-%d %H:%M UTC')}
+CURRENT DATE: May 29, 2026
+CURRENT TIME: {now.strftime('%H:%M UTC')}
 
 Sport: {sport}
 Query: {event or 'major upcoming events'}
 
-Task:
-- Identify REAL upcoming matches/fights/events happening strictly within the next 72 hours (before {cutoff.strftime('%Y-%m-%d %H:%M UTC')}).
-- For each selected match, deeply analyse form, head-to-head, weather, player/fighter news, injuries, motivation, and key stats.
-- Provide EXACTLY 4 hot betting tips with **specific recommendations** (handicap, over/under, moneyline, props, etc.).
-- ONLY use real, active, non-cancelled events. Do not hallucinate players or matches.
+REAL UPCOMING EVENTS (May 29-31 2026):
+- UEFA Champions League Final: Arsenal vs PSG on May 30
+- UFC Fight Night on May 30 (multiple fights)
+- Roland Garros (French Open) ongoing with matches
 
-Be savage, witty, brutal, and entertaining in your descriptions.
+Your job:
+- Find REAL upcoming matches/fights in the next 72 hours for the requested sport.
+- Deeply analyse form, H2H, weather, player/fighter news, injuries, motivation, and stats.
+- Give EXACTLY 4 hot betting tips with specific recommendations (handicap, over/under, winner, BTTS, rounds, etc.).
+- If truly no events, reply with "NO_UPCOMING_EVENTS".
 
-Output format exactly (no extra text before or after):
+Output format exactly (no extra text):
 
-**🔥 Tip 1: Team/Player A vs Team/Player B (Event Name)**
-Specific betting tip. Savage analysis and roasting. End with emojis.
+**🔥 Tip 1: Fighter/Team A vs Fighter/Team B (Event)**
+Specific betting tip. Savage, witty, brutal roasting description. End with emojis.
 
-**🔥 Tip 2:** ...
-**🔥 Tip 3:** ...
-**🔥 Tip 4:** ...
+Do the same for Tip 2, 3 and 4.
 """
 
         chat = xai_client.chat.create(model="grok-4.3")
-        chat.append(system("You are an expert savage sports betting tipster. Always base tips on real upcoming events only. Never hallucinate fixtures or cancelled matches. Provide exactly 4 tips."))
+        chat.append(system("You are a savage sports betting tipster. Always provide exactly 4 tips using real upcoming events. Never hallucinate. Be analytical and funny."))
         chat.append(user(context))
         
         response = chat.sample()
         ai_output = response.content.strip()
+
+        if "NO_UPCOMING_EVENTS" in ai_output.upper():
+            embed = discord.Embed(
+                title="🏆 SPORTS TIPS — NEXT 72 HOURS",
+                description=f"**Sport:** {sport.upper()}\n**Query:** {event or 'Major Events'}",
+                color=0xff4500
+            )
+            embed.add_field(name="Status", value="❌ There are no confirmed upcoming events within the next 72 hours.", inline=False)
+            embed.set_footer(text="🏆 Sports Tips Bot • Powered by Grok")
+            embed.timestamp = datetime.utcnow()
+            await interaction.followup.send(embed=embed)
+            return
 
         embed = discord.Embed(
             title="🏆 SPORTS TIPS — NEXT 72 HOURS",
