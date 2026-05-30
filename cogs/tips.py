@@ -20,29 +20,31 @@ class TipsCog(commands.Cog):
         
         events = await fetch_upcoming_fixtures(sport)
         if not events:
-            await interaction.followup.send(f"❌ No upcoming {sport} events in the next 48 hours.")
+            await interaction.followup.send(f"❌ No upcoming {sport} events found in the next 48 hours.")
             return
 
         events_str = "\n".join([f"{e['home']} vs {e['away']} - {e['league']} @ {e['datetime']}" for e in events])
         
-        prompt = f"""You are a professional sports betting analyst.
-Only use these upcoming {sport} matches in the next 48 hours:
+        prompt = f"""You are a professional sports analyst.
+Use ONLY these upcoming {sport} matches in the next 48 hours:
 
 {events_str}
 
-Give me EXACTLY 4 high-confidence "hot tips".
-- Each tip on a DIFFERENT match.
-- Format: bullet list with brief reasoning + confidence (High/Med).
-- No past events."""
+Return EXACTLY 4 hot tips on DIFFERENT matches.
+Each tip should be on a separate event.
+Format as clean bullet list with short reasoning + confidence (High/Med)."""
 
-        response = await self.client.chat.completions.create(
-            model="grok-4.3",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=800,
-            temperature=0.7
-        )
-        
-        tips = response.choices[0].message.content
+        try:
+            response = await self.client.chat.completions.create(
+                model="grok-4.3",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=700,
+                temperature=0.7
+            )
+            tips = response.choices[0].message.content
+        except Exception as e:
+            tips = f"❌ Error getting analysis: {str(e)[:150]}"
+
         embed = discord.Embed(title=f"🔥 4 Hot {sport.capitalize()} Tips (48h)", description=tips, color=0x00ff00)
         await interaction.followup.send(embed=embed)
 
@@ -53,7 +55,7 @@ Give me EXACTLY 4 high-confidence "hot tips".
         
         event = await search_specific_event(match)
         if not event:
-            await interaction.followup.send("❌ Could not find that upcoming match.")
+            await interaction.followup.send("❌ Could not find that upcoming match. Try team names.")
             return
         
         prompt = f"""Analyze this upcoming match ONLY:
@@ -61,13 +63,17 @@ Give me EXACTLY 4 high-confidence "hot tips".
 
 Give exactly 4 sharp hot tips with short reasoning."""
 
-        response = await self.client.chat.completions.create(
-            model="grok-4.3",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=700
-        )
-        
-        tips = response.choices[0].message.content
+        try:
+            response = await self.client.chat.completions.create(
+                model="grok-4.3",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=700,
+                temperature=0.7
+            )
+            tips = response.choices[0].message.content
+        except Exception as e:
+            tips = f"❌ Error: {str(e)[:150]}"
+
         embed = discord.Embed(title=f"🎯 Tips: {event['home']} vs {event['away']}", description=tips, color=0xffaa00)
         await interaction.followup.send(embed=embed)
 
