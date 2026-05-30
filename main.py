@@ -17,7 +17,7 @@ async def on_ready():
             guild = discord.Object(id=int(guild_id))
             bot.tree.copy_global_to(guild=guild)
             await bot.tree.sync(guild=guild)
-            print("✅ Commands synced to guild")
+            print("✅ Commands synced to guild (fast)")
         else:
             await bot.tree.sync()
             print("✅ Commands synced globally")
