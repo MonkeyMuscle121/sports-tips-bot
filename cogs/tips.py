@@ -1,6 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+import os
 from openai import AsyncOpenAI
 from utils.sports_data import fetch_upcoming_fixtures
 
