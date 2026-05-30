@@ -3,12 +3,10 @@ from datetime import datetime, timedelta
 import pytz
 import os
 
-# Football Data API (free tier)
 API_KEY = os.getenv("FOOTBALL_DATA_KEY")
 BASE_URL = "https://api.football-data.org/v4"
 
-async def fetch_upcoming_fixtures(sport: str, hours: int = 48):
-    """Faster version - only major leagues"""
+async def fetch_upcoming_fixtures(sport: str, hours: int = 168):  # 7 days
     if sport.lower() not in ["football", "soccer"]:
         return []
     
@@ -17,16 +15,18 @@ async def fetch_upcoming_fixtures(sport: str, hours: int = 48):
     cutoff = now + timedelta(hours=hours)
     
     if not API_KEY:
-        return events
+        return [{"error": "No API key"}]
     
     headers = {"X-Auth-Token": API_KEY}
-    competitions = ["PL", "CL", "PD"]   # Premier League, Champions League, La Liga
+    
+    # Added international competitions
+    competitions = ["PL", "CL", "PD", "WC", "EC"]   # Club + International
     
     async with aiohttp.ClientSession() as session:
         for comp in competitions:
             url = f"{BASE_URL}/competitions/{comp}/matches"
             try:
-                async with session.get(url, headers=headers, timeout=8) as resp:
+                async with session.get(url, headers=headers, timeout=10) as resp:
                     if resp.status != 200:
                         continue
                     data = await resp.json()
@@ -46,19 +46,17 @@ async def fetch_upcoming_fixtures(sport: str, hours: int = 48):
                             continue
             except:
                 continue
-    return events[:12]
+    return events[:15]
 
 async def search_specific_event(query: str):
-    """Search for specific upcoming match"""
     if not API_KEY:
         return None
-        
     headers = {"X-Auth-Token": API_KEY}
     url = f"{BASE_URL}/matches"
     
     async with aiohttp.ClientSession() as session:
         try:
-            async with session.get(url, headers=headers, timeout=8) as resp:
+            async with session.get(url, headers=headers, timeout=10) as resp:
                 if resp.status != 200:
                     return None
                 data = await resp.json()
