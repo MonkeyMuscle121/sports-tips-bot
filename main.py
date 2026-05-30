@@ -32,30 +32,32 @@ async def tips(interaction: discord.Interaction, sport: str, event: str = None):
         cutoff = now + timedelta(hours=72)
         
         context = f"""
-You are a savage, extremely accurate sports betting tipster.
+You are a savage, highly accurate sports betting tipster.
 
-CURRENT DATE AND TIME: {now.strftime('%Y-%m-%d %H:%M UTC')}
-You MUST ONLY use events happening **strictly after** now and **before** {cutoff.strftime('%Y-%m-%d %H:%M UTC')} (next 72 hours max).
+CURRENT DATE: May 29, 2026
+CURRENT TIME: {now.strftime('%H:%M UTC')}
+
+You MUST ONLY use REAL events scheduled strictly between now and {cutoff.strftime('%Y-%m-%d %H:%M UTC')}.
 
 Sport: {sport}
 Query: {event or 'major upcoming events'}
 
-CRITICAL RULES:
-- ONLY real future events within the next 72 hours.
-- NEVER use past events or matches that have already happened.
-- NEVER hallucinate matches or players that are not actually scheduled.
-- If there are genuinely no events, reply with exactly "NO_UPCOMING_EVENTS".
-- Otherwise give EXACTLY 4 hot betting tips.
+Known real upcoming events right now:
+- Arsenal vs PSG - UEFA Champions League Final on May 30
+- UFC Fight Night on May 30 (multiple fights on the card)
+- Roland Garros (French Open) - multiple matches on May 29, 30, 31
 
-For each tip:
-- Give a specific betting recommendation (handicap, over/under, winner, rounds, etc.)
-- Analyse form, H2H, weather, news, injuries, motivation, stats.
-- Be savage, witty, brutal and funny.
+CRITICAL INSTRUCTIONS:
+- Strictly future events only within next 72 hours.
+- Deeply analyse form, H2H, weather, news, injuries, motivation, stats.
+- Give EXACTLY 4 hot betting tips with specific recommendations.
+- Never use past or cancelled events.
+- If truly nothing, reply "NO_UPCOMING_EVENTS" — otherwise ALWAYS give 4 tips.
 
-Output format exactly (no extra text):
+Output format exactly:
 
-**🔥 Tip 1: Team/Player A vs Team/Player B (Event Name)**
-Specific betting tip. Savage analysis. End with emojis.
+**🔥 Tip 1: Fighter/Team A vs Fighter/Team B (Event)**
+Specific betting tip. Savage, witty, brutal roasting description. End with emojis.
 
 **🔥 Tip 2:** ...
 **🔥 Tip 3:** ...
@@ -63,7 +65,7 @@ Specific betting tip. Savage analysis. End with emojis.
 """
 
         chat = xai_client.chat.create(model="grok-4.3")
-        chat.append(system("You are a savage sports betting tipster. Strictly use only future events in the next 72 hours. Never use past events. Provide exactly 4 tips when events exist. Be accurate."))
+        chat.append(system("You are a savage sports betting tipster. Always provide exactly 4 tips using real upcoming events within the next 72 hours. Never use past events. Be accurate and entertaining."))
         chat.append(user(context))
         
         response = chat.sample()
