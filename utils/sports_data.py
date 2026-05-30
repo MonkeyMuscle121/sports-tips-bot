@@ -82,4 +82,3 @@ async def fetch_upcoming_fixtures(sport: str, hours: int = 168):
 
 async def search_specific_event(query: str):
     return None  # Can be expanded later
-                        
