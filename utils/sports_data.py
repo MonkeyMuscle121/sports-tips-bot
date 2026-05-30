@@ -2,55 +2,73 @@ import aiohttp
 from datetime import datetime, timedelta
 import pytz
 
+# Free API - good for major football leagues
+API_KEY = "YOUR_FOOTBALL_DATA_KEY_HERE"  # We'll get this in next step
+BASE_URL = "https://api.football-data.org/v4"
+
 async def fetch_upcoming_fixtures(sport: str, hours: int = 48):
-    sport = sport.capitalize()
-    if sport == "Football":
-        sport = "Soccer"
+    """Fetch upcoming football matches for next 48h using football-data.org"""
+    if sport.lower() not in ["football", "soccer"]:
+        return []  # For now we focus on football (expand later)
     
     events = []
     now = datetime.now(pytz.utc)
+    cutoff = now + timedelta(hours=hours)
+    
+    headers = {"X-Auth-Token": API_KEY}
     
     async with aiohttp.ClientSession() as session:
-        for i in range(3):
-            check_date = (now + timedelta(days=i)).strftime("%Y-%m-%d")
-            url = f"https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d={check_date}&s={sport}"
-            
-            async with session.get(url) as resp:
+        # Get matches from major competitions
+        competitions = ["PL", "CL", "BL", "SA", "PD", "FL1"]  # Premier, Champions, Bundesliga, etc.
+        
+        for comp in competitions:
+            url = f"{BASE_URL}/competitions/{comp}/matches"
+            async with session.get(url, headers=headers) as resp:
+                if resp.status != 200:
+                    continue
                 data = await resp.json()
-                day_events = data.get("events", []) or []
+                matches = data.get("matches", [])
                 
-                cutoff = now + timedelta(hours=hours)
-                for e in day_events:
+                for m in matches:
                     try:
-                        event_time = datetime.fromisoformat(e["strTimestamp"].replace("Z", "+00:00"))
-                        if now < event_time <= cutoff:
+                        utc_time = datetime.fromisoformat(m["utcDate"].replace("Z", "+00:00"))
+                        if now < utc_time <= cutoff and m["status"] == "SCHEDULED":
                             events.append({
-                                "home": e.get("strHomeTeam"),
-                                "away": e.get("strAwayTeam"),
-                                "league": e.get("strLeague"),
-                                "datetime": event_time.strftime("%Y-%m-%d %H:%M UTC")
+                                "home": m["homeTeam"]["name"],
+                                "away": m["awayTeam"]["name"],
+                                "league": m["competition"]["name"],
+                                "datetime": utc_time.strftime("%Y-%m-%d %H:%M UTC")
                             })
                     except:
                         continue
-    return events[:20]
+    return events[:15]  # Keep prompt small
 
 async def search_specific_event(query: str):
-    url = f"https://www.thesportsdb.com/api/v1/json/3/searchall.php?s={query.replace(' ', '%20')}"
+    """Search for a specific upcoming match"""
+    # Simple fallback - for now use broad search, improve later
+    headers = {"X-Auth-Token": API_KEY}
+    url = f"{BASE_URL}/matches"
+    
     async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
+        async with session.get(url, headers=headers) as resp:
+            if resp.status != 200:
+                return None
             data = await resp.json()
-            events = data.get("event", []) or []
+            matches = data.get("matches", [])
             now = datetime.now(pytz.utc)
-            for e in events:
-                try:
-                    dt = datetime.fromisoformat(e.get("strTimestamp", "").replace("Z", "+00:00"))
-                    if dt > now:
-                        return {
-                            "home": e.get("strHomeTeam"),
-                            "away": e.get("strAwayTeam"),
-                            "league": e.get("strLeague"),
-                            "datetime": dt.strftime("%Y-%m-%d %H:%M UTC")
-                        }
-                except:
+            
+            for m in matches:
+                if m["status"] != "SCHEDULED":
                     continue
+                home = m["homeTeam"]["name"]
+                away = m["awayTeam"]["name"]
+                if query.lower() in f"{home} vs {away}".lower():
+                    utc_time = datetime.fromisoformat(m["utcDate"].replace("Z", "+00:00"))
+                    if utc_time > now:
+                        return {
+                            "home": home,
+                            "away": away,
+                            "league": m["competition"]["name"],
+                            "datetime": utc_time.strftime("%Y-%m-%d %H:%M UTC")
+                        }
     return None
