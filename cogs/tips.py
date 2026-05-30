@@ -1,6 +1,7 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
+import os
 from openai import AsyncOpenAI
 from utils.sports_data import fetch_upcoming_fixtures
 
@@ -31,14 +32,14 @@ Only use these upcoming {sport} events in the next 48 hours:
 {events_str}
 
 Give EXACTLY 4 different hot tips on DIFFERENT events.
-Make them fresh and varied. Use bullet points with short reasoning + confidence."""
+Make them fresh and varied. Use bullet points with short reasoning + confidence (High/Med)."""
 
         try:
             response = await self.client.chat.completions.create(
                 model="grok-4.3",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=750,
-                temperature=0.8   # Higher temperature = more variety
+                temperature=0.8
             )
             tips = response.choices[0].message.content
         except Exception as e:
