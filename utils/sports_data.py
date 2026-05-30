@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import pytz
 
 # Free API - good for major football leagues
-API_KEY = "YOUR_FOOTBALL_DATA_KEY_HERE"  # We'll get this in next step
+API_KEY = API_KEY = os.getenv("FOOTBALL_DATA_KEY")
 BASE_URL = "https://api.football-data.org/v4"
 
 async def fetch_upcoming_fixtures(sport: str, hours: int = 48):
