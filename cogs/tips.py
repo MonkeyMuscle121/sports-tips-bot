@@ -13,25 +13,29 @@ class TipsCog(commands.Cog):
             base_url="https://api.x.ai/v1"
         )
 
-    @app_commands.command(name="tips", description="Get 4 hot tips for a sport (next 48h)")
+    @app_commands.command(name="tips", description="Get 4 hot tips for a sport")
     @app_commands.describe(sport="football, basketball, tennis, etc.")
     async def sport_tips(self, interaction: discord.Interaction, sport: str):
         await interaction.response.defer()
         
         events = await fetch_upcoming_fixtures(sport)
+        
         if not events:
-            await interaction.followup.send(f"❌ No upcoming {sport} events found in the next 48 hours.")
+            await interaction.followup.send("❌ No upcoming matches found.\n\n**Possible reasons:**\n• Off-season\n• Missing FOOTBALL_DATA_KEY in Render Environment")
+            return
+
+        if isinstance(events[0], dict) and "error" in events[0]:
+            await interaction.followup.send("❌ Football API key is missing. Add `FOOTBALL_DATA_KEY` in Render Environment tab.")
             return
 
         events_str = "\n".join([f"{e['home']} vs {e['away']} - {e['league']} @ {e['datetime']}" for e in events])
         
         prompt = f"""You are a professional sports analyst.
-Use ONLY these upcoming {sport} matches in the next 48 hours:
+Use ONLY these upcoming {sport} matches:
 
 {events_str}
 
 Return EXACTLY 4 hot tips on DIFFERENT matches.
-Each tip should be on a separate event.
 Format as clean bullet list with short reasoning + confidence (High/Med)."""
 
         try:
@@ -43,9 +47,9 @@ Format as clean bullet list with short reasoning + confidence (High/Med)."""
             )
             tips = response.choices[0].message.content
         except Exception as e:
-            tips = f"❌ Error getting analysis: {str(e)[:150]}"
+            tips = f"Analysis error: {str(e)[:100]}"
 
-        embed = discord.Embed(title=f"🔥 4 Hot {sport.capitalize()} Tips (48h)", description=tips, color=0x00ff00)
+        embed = discord.Embed(title=f"🔥 4 Hot {sport.capitalize()} Tips", description=tips, color=0x00ff00)
         await interaction.followup.send(embed=embed)
 
     @app_commands.command(name="event_tips", description="Get 4 hot tips for one specific match")
@@ -55,10 +59,10 @@ Format as clean bullet list with short reasoning + confidence (High/Med)."""
         
         event = await search_specific_event(match)
         if not event:
-            await interaction.followup.send("❌ Could not find that upcoming match. Try team names.")
+            await interaction.followup.send("❌ Could not find that upcoming match.")
             return
         
-        prompt = f"""Analyze this upcoming match ONLY:
+        prompt = f"""Analyze this upcoming match:
 {event['home']} vs {event['away']} ({event['league']}) at {event['datetime']}
 
 Give exactly 4 sharp hot tips with short reasoning."""
@@ -72,7 +76,7 @@ Give exactly 4 sharp hot tips with short reasoning."""
             )
             tips = response.choices[0].message.content
         except Exception as e:
-            tips = f"❌ Error: {str(e)[:150]}"
+            tips = f"Error: {str(e)[:100]}"
 
         embed = discord.Embed(title=f"🎯 Tips: {event['home']} vs {event['away']}", description=tips, color=0xffaa00)
         await interaction.followup.send(embed=embed)
