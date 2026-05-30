@@ -1,15 +1,16 @@
 import aiohttp
 from datetime import datetime, timedelta
 import pytz
+import os   # ← This is the line we added
 
-# Free API - good for major football leagues
-API_KEY = API_KEY = os.getenv("FOOTBALL_DATA_KEY")
+# Free API for football matches
+API_KEY = os.getenv("FOOTBALL_DATA_KEY")   # Reads the key from Render
 BASE_URL = "https://api.football-data.org/v4"
 
 async def fetch_upcoming_fixtures(sport: str, hours: int = 48):
-    """Fetch upcoming football matches for next 48h using football-data.org"""
+    """Fetch upcoming football matches for next 48h"""
     if sport.lower() not in ["football", "soccer"]:
-        return []  # For now we focus on football (expand later)
+        return []  # Only football supported for now
     
     events = []
     now = datetime.now(pytz.utc)
@@ -18,8 +19,7 @@ async def fetch_upcoming_fixtures(sport: str, hours: int = 48):
     headers = {"X-Auth-Token": API_KEY}
     
     async with aiohttp.ClientSession() as session:
-        # Get matches from major competitions
-        competitions = ["PL", "CL", "BL", "SA", "PD", "FL1"]  # Premier, Champions, Bundesliga, etc.
+        competitions = ["PL", "CL", "BL", "SA", "PD", "FL1"]  # Major leagues
         
         for comp in competitions:
             url = f"{BASE_URL}/competitions/{comp}/matches"
@@ -41,11 +41,13 @@ async def fetch_upcoming_fixtures(sport: str, hours: int = 48):
                             })
                     except:
                         continue
-    return events[:15]  # Keep prompt small
+    return events[:15]
 
 async def search_specific_event(query: str):
     """Search for a specific upcoming match"""
-    # Simple fallback - for now use broad search, improve later
+    if not API_KEY:
+        return None
+        
     headers = {"X-Auth-Token": API_KEY}
     url = f"{BASE_URL}/matches"
     
@@ -62,7 +64,7 @@ async def search_specific_event(query: str):
                     continue
                 home = m["homeTeam"]["name"]
                 away = m["awayTeam"]["name"]
-                if query.lower() in f"{home} vs {away}".lower():
+                if query.lower() in f"{home} vs {away}".lower() or query.lower() in home.lower() or query.lower() in away.lower():
                     utc_time = datetime.fromisoformat(m["utcDate"].replace("Z", "+00:00"))
                     if utc_time > now:
                         return {
