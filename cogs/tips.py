@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 import os
 from openai import AsyncOpenAI
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 
 class TipsCog(commands.Cog):
@@ -21,32 +21,25 @@ class TipsCog(commands.Cog):
         
         now = datetime.now(pytz.utc)
         current_time = now.strftime("%A, %B %d, %Y at %H:%M UTC")
-        
+        future_date = (now + timedelta(hours=48)).strftime("%B %d, %Y")
+
         prompt = f"""Today is {current_time}.
 
-You are a professional sports tipster. 
+Give exactly 4 hot tips for {sport.upper()} events in the next 48 hours (until {future_date}).
 
-Give me **exactly 4 hot tips** for **{sport.upper()}** events that are **scheduled in the next 48 hours from now**.
-
-Important Rules:
-- ONLY use events that are actually happening between now and { (now + timedelta(hours=48)).strftime("%A, %B %d, %Y") }.
-- Do NOT use any past events.
-- Each tip must be on a different event/fight/match.
-- Vary the tips (winner, method of victory, rounds, props, etc.).
-- Keep reasoning short and sharp.
-
-If there are no major events, say so clearly at the top."""
+Be honest. If few events, use the best available ones. 
+Each tip on different event. Short reasoning. Bullet format."""
 
         try:
             response = await self.client.chat.completions.create(
                 model="grok-4.3",
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=900,
+                max_tokens=600,      # Shorter = faster
                 temperature=0.7
             )
             tips = response.choices[0].message.content
         except Exception as e:
-            tips = f"Error: {str(e)[:200]}"
+            tips = f"Error generating tips: {str(e)[:100]}"
 
         embed = discord.Embed(title=f"🔥 4 Hot {sport.upper()} Tips (Next 48h)", description=tips, color=0x00ff00)
         await interaction.followup.send(embed=embed)
