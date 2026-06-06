@@ -1,4 +1,4 @@
-ok so this is the code but can we speed it up a little import os
+import os
 from datetime import datetime, timedelta
 import pytz
 from dotenv import load_dotenv
