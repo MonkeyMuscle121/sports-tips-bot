@@ -1,83 +1,79 @@
-import os
-from datetime import datetime
 import discord
-from discord.ext import commands
-import logging
+from discord import app_commands
+from discord.ui import Select, View
+import os
 import asyncio
+from datetime import datetime
+import logging
 
-# xAI SDK
-from xai_sdk import AsyncClient
-from xai_sdk.chat import user, system
-
-load_dotenv = __import__("dotenv").load_dotenv
-
-load_dotenv()
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
-XAI_API_KEY = os.getenv("XAI_API_KEY")
 
 intents = discord.Intents.default()
-bot = commands.Bot(command_prefix="!", intents=intents)
+client = discord.Client(intents=intents)
+tree = app_commands.CommandTree(client)
 
-LOADING_MESSAGES = [
-    "🔍 Loading tips... hold tight 😂",
-    "🔍 Fetching fresh picks...",
-]
+class SportSelect(Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label="Football", value="football", emoji="⚽"),
+            discord.SelectOption(label="Basketball", value="basketball", emoji="🏀"),
+            discord.SelectOption(label="Boxing", value="boxing", emoji="🥊"),
+            discord.SelectOption(label="Tennis", value="tennis", emoji="🎾"),
+            discord.SelectOption(label="Darts", value="darts", emoji="🎯"),
+            discord.SelectOption(label="UFC", value="ufc", emoji="🥋"),
+        ]
+        super().__init__(placeholder="Choose a sport for hot tips", options=options, min_values=1, max_values=1)
 
-def get_random_loading_message():
-    import random
-    return random.choice(LOADING_MESSAGES)
-
-async def get_sports_tips():
-    try:
-        async with asyncio.timeout(50):
-            client = AsyncClient(api_key=XAI_API_KEY, timeout=45)
-            chat = client.chat.create(
-                model="grok-4.20-reasoning",
-                temperature=0.7,
-                max_turns=3,
+    async def callback(self, interaction: discord.Interaction):
+        sport = self.values[0]
+        await interaction.response.edit_message(
+            content="**Loading Results from Grok Ai** ⏳ (up to 1 min)", 
+            view=None
+        )
+        
+        try:
+            from sports_data import get_upcoming_events
+            from grok_tips import generate_hot_tips
+            
+            events = await get_upcoming_events(sport)
+            if not events or len(events) == 0:
+                await interaction.followup.send(f"No upcoming events found in the next 48 hours for {sport}.")
+                return
+                
+            tips = await generate_hot_tips(sport, events)
+            
+            embed = discord.Embed(
+                title=f"🔥 4 Hot Tips — {sport.upper()} (Next 48h)",
+                color=0xFFD700,
+                timestamp=datetime.now()
             )
+            embed.set_footer(text="Powered by Grok AI • Data from API-Football & TheSportsDB")
             
-            prompt = "Give 4 good varied hot tips from different sports for the next few days. Be savage and funny."
+            for i, tip in enumerate(tips, 1):
+                embed.add_field(
+                    name=f"Tip #{i} — {tip.get('match', 'Event')}",
+                    value=f"**Recommendation:** {tip.get('tip', 'N/A')}\n\n**Savage Write-up:**\n{tip.get('writeup', 'No write-up available.')}",
+                    inline=False
+                )
             
-            chat.append(system("You are a savage, cheeky AI betting bot. Be brutally funny."))
-            chat.append(user(prompt))
-            response = await chat.sample()
-            
-            return response.content[:3900]
-            
-    except Exception as e:
-        logger.error(f"Error: {e}")
-        return "❌ Failed to fetch tips. Try again in 20 seconds."
+            await interaction.followup.send(embed=embed)
+        except Exception as e:
+            logging.error(f"Error in tips callback: {e}")
+            await interaction.followup.send(f"❌ Error generating tips: {str(e)[:500]}")
 
-@bot.tree.command(name="tips", description="Get hot tips")
-async def hot_tips(interaction: discord.Interaction):
-    await interaction.response.defer(thinking=True)
-    status_msg = await interaction.followup.send(get_random_loading_message())
-    
-    display = await get_sports_tips()
+@tree.command(name="tips", description="Get 4 savage Grok AI hot tips for a sport (next 48 hours)")
+async def tips(interaction: discord.Interaction):
+    view = View(timeout=120)
+    view.add_item(SportSelect())
+    await interaction.response.send_message("Select a sport for Grok-powered savage tips:", view=view, ephemeral=False)
 
-    embed = discord.Embed(
-        title="🔥 Top Hot Tips",
-        description=f"📅 {datetime.now(pytz.timezone('Europe/London')).strftime('%A %d %B %Y %H:%M')} BST",
-        color=0xff00ff
-    )
-    embed.add_field(name="Tips", value=display, inline=False)
-    embed.set_footer(text="🔥 For entertainment only • Gamble responsibly • 18+")
-    await interaction.followup.send(embed=embed)
-    try: await status_msg.delete()
-    except: pass
-
-@bot.event
+@client.event
 async def on_ready():
-    print(f"✅ {bot.user} is ONLINE!")
     try:
-        await bot.tree.sync()
-        print("✅ Commands synced")
+        await tree.sync(guild=None)  # Global + guild commands
+        print(f'✅ Bot is ready as {client.user}! Global commands synced.')
     except Exception as e:
-        print(f"Sync error: {e}")
+        print(f"Sync warning: {e}")
 
 if __name__ == "__main__":
-    bot.run(DISCORD_TOKEN)
+    client.run(os.getenv('DISCORD_TOKEN'))
