@@ -2,9 +2,8 @@ import discord
 from discord import app_commands
 from discord.ui import Select, View
 import os
-import asyncio
-from datetime import datetime
 import logging
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 
@@ -22,58 +21,42 @@ class SportSelect(Select):
             discord.SelectOption(label="Darts", value="darts", emoji="🎯"),
             discord.SelectOption(label="UFC", value="ufc", emoji="🥋"),
         ]
-        super().__init__(placeholder="Choose a sport for hot tips", options=options, min_values=1, max_values=1)
+        super().__init__(placeholder="Choose a sport...", options=options)
 
     async def callback(self, interaction: discord.Interaction):
         sport = self.values[0]
-        await interaction.response.edit_message(
-            content="**Loading Results from Grok Ai** ⏳ (up to 1 min)", 
-            view=None
-        )
+        await interaction.response.edit_message(content="**Loading Results from Grok Ai** ⏳ (up to 1 min)", view=None)
         
         try:
             from sports_data import get_upcoming_events
             from grok_tips import generate_hot_tips
             
             events = await get_upcoming_events(sport)
-            if not events or len(events) == 0:
-                await interaction.followup.send(f"No upcoming events found in the next 48 hours for {sport}.")
-                return
-                
             tips = await generate_hot_tips(sport, events)
             
-            embed = discord.Embed(
-                title=f"🔥 4 Hot Tips — {sport.upper()} (Next 48h)",
-                color=0xFFD700,
-                timestamp=datetime.now()
-            )
-            embed.set_footer(text="Powered by Grok AI • Data from API-Football & TheSportsDB")
+            embed = discord.Embed(title=f"🔥 4 Hot Tips — {sport.upper()} (Next 48h)", color=0xFFD700, timestamp=datetime.now())
+            embed.set_footer(text="Powered by Grok AI")
             
             for i, tip in enumerate(tips, 1):
                 embed.add_field(
-                    name=f"Tip #{i} — {tip.get('match', 'Event')}",
-                    value=f"**Recommendation:** {tip.get('tip', 'N/A')}\n\n**Savage Write-up:**\n{tip.get('writeup', 'No write-up available.')}",
+                    name=f"Tip #{i} — {tip.get('match')}",
+                    value=f"**Rec:** {tip.get('tip')}\n\n**Savage Write-up:**\n{tip.get('writeup')}",
                     inline=False
                 )
-            
             await interaction.followup.send(embed=embed)
         except Exception as e:
-            logging.error(f"Error in tips callback: {e}")
-            await interaction.followup.send(f"❌ Error generating tips: {str(e)[:500]}")
+            await interaction.followup.send(f"❌ Error: {str(e)[:300]}")
 
-@tree.command(name="tips", description="Get 4 savage Grok AI hot tips for a sport (next 48 hours)")
-async def tips(interaction: discord.Interaction):
-    view = View(timeout=120)
+@tree.command(name="tips", description="Get savage Grok AI hot tips")
+async def tips_cmd(interaction: discord.Interaction):
+    view = View(timeout=90)
     view.add_item(SportSelect())
-    await interaction.response.send_message("Select a sport for Grok-powered savage tips:", view=view, ephemeral=False)
+    await interaction.response.send_message("Pick a sport:", view=view)
 
 @client.event
 async def on_ready():
-    try:
-        await tree.sync(guild=None)  # Global + guild commands
-        print(f'✅ Bot is ready as {client.user}! Global commands synced.')
-    except Exception as e:
-        print(f"Sync warning: {e}")
+    await tree.sync()
+    print(f"✅ Bot ready as {client.user}")
 
 if __name__ == "__main__":
     client.run(os.getenv('DISCORD_TOKEN'))
