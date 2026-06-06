@@ -1,63 +1,44 @@
 import os
 import requests
 from datetime import datetime, timedelta
-import asyncio
 import logging
 
 FOOTBALL_KEY = os.getenv('FOOTBALL_DATA_KEY')
-SPORTSDB_KEY = os.getenv('SPORTS_API_KEY')  # TheSportsDB key
+SPORTSDB_KEY = os.getenv('SPORTS_API_KEY')
 
 async def get_upcoming_events(sport: str, limit: int = 20):
-    """Fetch upcoming events in next 48 hours using appropriate API"""
     now = datetime.utcnow()
     end_time = now + timedelta(hours=48)
-    
     events = []
     
     try:
-        if sport == "football":
-            # API-Football fixtures
+        if sport.lower() == "football":
             url = "https://v3.football.api-sports.io/fixtures"
             headers = {'x-apisports-key': FOOTBALL_KEY}
-            params = {
-                'from': now.strftime('%Y-%m-%d'),
-                'to': end_time.strftime('%Y-%m-%d'),
-            }
+            params = {'from': now.strftime('%Y-%m-%d'), 'to': end_time.strftime('%Y-%m-%d')}
             response = requests.get(url, headers=headers, params=params, timeout=15)
             if response.status_code == 200:
                 data = response.json().get('response', [])
-                for fixture in data[:limit]:
+                for f in data[:limit]:
                     events.append({
-                        'id': fixture.get('fixture', {}).get('id'),
-                        'match': f"{fixture.get('teams', {}).get('home', {}).get('name')} vs {fixture.get('teams', {}).get('away', {}).get('name')}",
-                        'date': fixture.get('fixture', {}).get('date'),
-                        'league': fixture.get('league', {}).get('name'),
-                        'sport': 'football'
+                        'match': f"{f.get('teams',{}).get('home',{}).get('name')} vs {f.get('teams',{}).get('away',{}).get('name')}",
+                        'date': f.get('fixture',{}).get('date'),
+                        'league': f.get('league',{}).get('name')
                     })
         else:
-            # Other sports - TheSportsDB (basic support)
-            url = f"https://www.thesportsdb.com/api/v1/json/{SPORTSDB_KEY}/eventsnextleague.php?id=4328"
+            # TheSportsDB fallback for other sports
+            url = f"https://www.thesportsdb.com/api/v1/json/{SPORTSDB_KEY}/eventsnext.php?id=4328"  # example league
             response = requests.get(url, timeout=10)
             if response.status_code == 200:
-                data = response.json().get('events', []) or []
-                for event in data[:limit]:
-                    if event.get('strTimestamp'):
-                        try:
-                            event_time = datetime.fromisoformat(event['strTimestamp'].replace('Z', '+00:00'))
-                            if now < event_time < end_time:
-                                events.append({
-                                    'match': f"{event.get('strHomeTeam')} vs {event.get('strAwayTeam') or event.get('strEvent')}",
-                                    'date': event.get('strTimestamp'),
-                                    'sport': sport
-                                })
-                        except:
-                            pass
+                data = response.json().get('events', [])[:limit]
+                for e in data:
+                    events.append({
+                        'match': e.get('strEvent', 'Unknown Event'),
+                        'date': e.get('strTimestamp')
+                    })
         
-        # Filter strictly next 48h
-        events = [e for e in events if e.get('date')]
-        logging.info(f"Fetched {len(events)} upcoming events for {sport}")
-        return events[:limit]
-        
+        logging.info(f"Found {len(events)} events for {sport}")
+        return events
     except Exception as e:
-        logging.error(f"Error fetching data for {sport}: {e}")
+        logging.error(f"Data fetch error: {e}")
         return []
