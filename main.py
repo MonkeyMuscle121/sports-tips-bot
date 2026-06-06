@@ -4,7 +4,6 @@ import pytz
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import logging
 import asyncio
 
@@ -22,34 +21,48 @@ CHANNEL_ID = int(os.getenv("CHANNEL_ID", 0))
 
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
-scheduler = AsyncIOScheduler(timezone="Europe/London")
 
 LOADING_MESSAGES = [
-    "🔍 Finding real upcoming events... hold tight 😂",
+    "🔍 Pulling REAL upcoming events... hold tight you melt 😂",
     "🔍 Fetching fresh tips...",
-    "🔍 Loading...",
+    "🔍 Loading accurate picks...",
 ]
 
 def get_random_loading_message():
     import random
     return random.choice(LOADING_MESSAGES)
 
+def clean_response(text: str) -> str:
+    return '\n'.join(line.strip() for line in text.strip().split('\n'))
+
+def format_tips_for_display(tips_list):
+    if not tips_list:
+        return "No upcoming events found in next 72 hours."
+    lines = []
+    for i, tip in enumerate(tips_list, 1):
+        event = tip.get("event", "Unknown Event")
+        selection = tip.get("selection", "Unknown")
+        comment = tip.get("comment", "Decent chance...")
+        lines.append(f"**{i}.** {event}\n**Pick:** {selection}\n**Comment:** {comment}")
+    return "\n\n".join(lines)
+
 async def get_sports_tips(sport: str = None, specific_event: str = None):
     try:
-        async with asyncio.timeout(55):
-            client = AsyncClient(api_key=XAI_API_KEY, timeout=50)
+        async with asyncio.timeout(70):
+            client = AsyncClient(api_key=XAI_API_KEY, timeout=65)
             chat = client.chat.create(
                 model="grok-4.20-reasoning",
-                temperature=0.7,
-                max_turns=3,
+                tools=[web_search(), x_search()],
+                temperature=0.55,
+                max_turns=5,
             )
             
             if specific_event:
                 prompt = f"Give 3 good tips for this specific event: {specific_event}. Be savage and funny."
             else:
-                prompt = "Give 4 good varied hot tips from different sports for the next 72 hours. Be savage and funny."
+                prompt = "Give 4 varied hot tips from different sports for the next 72 hours. Be savage and funny."
             
-            chat.append(system("You are a savage, cheeky AI betting bot. Only use real upcoming events. Be brutally funny."))
+            chat.append(system("You are a savage, cheeky AI betting bot. ONLY use real upcoming events. Be brutally funny."))
             chat.append(user(prompt))
             response = await chat.sample()
             
@@ -100,7 +113,7 @@ async def on_ready():
     print(f"✅ {bot.user} is ONLINE!")
     try:
         await bot.tree.sync()
-        print("✅ Commands synced")
+        print("✅ Slash commands synced")
     except Exception as e:
         print(f"Sync error: {e}")
 
