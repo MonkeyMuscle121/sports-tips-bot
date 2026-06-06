@@ -17,38 +17,32 @@ logger = logging.getLogger(__name__)
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 XAI_API_KEY = os.getenv("XAI_API_KEY")
-CHANNEL_ID = int(os.getenv("CHANNEL_ID", 0))
 
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 LOADING_MESSAGES = [
-    "🔍 Pulling real upcoming events... hold tight 😂",
-    "🔍 Fetching fresh tips...",
-    "🔍 Loading picks...",
+    "🔍 Loading tips... hold tight 😂",
+    "🔍 Fetching fresh picks...",
 ]
 
 def get_random_loading_message():
     import random
     return random.choice(LOADING_MESSAGES)
 
-async def get_sports_tips(sport: str = None, specific_event: str = None):
+async def get_sports_tips():
     try:
-        async with asyncio.timeout(60):
-            client = AsyncClient(api_key=XAI_API_KEY, timeout=55)
+        async with asyncio.timeout(50):
+            client = AsyncClient(api_key=XAI_API_KEY, timeout=45)
             chat = client.chat.create(
                 model="grok-4.20-reasoning",
-                tools=[web_search(), x_search()],
                 temperature=0.7,
-                max_turns=4,
+                max_turns=3,
             )
             
-            if specific_event:
-                prompt = f"Give 3 good tips for this specific event: {specific_event}. Be savage and funny."
-            else:
-                prompt = "Give 4 varied hot tips from different sports for the next 72 hours. Be savage and funny."
+            prompt = "Give 4 good varied hot tips from different sports for the next few days. Be savage and funny."
             
-            chat.append(system("You are a savage, cheeky AI betting bot. Only use real upcoming events. Be brutally funny."))
+            chat.append(system("You are a savage, cheeky AI betting bot. Be brutally funny."))
             chat.append(user(prompt))
             response = await chat.sample()
             
@@ -58,33 +52,15 @@ async def get_sports_tips(sport: str = None, specific_event: str = None):
         logger.error(f"Error: {e}")
         return "❌ Failed to fetch tips. Try again in 20 seconds."
 
-@bot.tree.command(name="tips", description="Get 4 hot tips")
-async def hot_tips(interaction: discord.Interaction, sport: str = "all"):
+@bot.tree.command(name="tips", description="Get hot tips")
+async def hot_tips(interaction: discord.Interaction):
     await interaction.response.defer(thinking=True)
     status_msg = await interaction.followup.send(get_random_loading_message())
     
-    display = await get_sports_tips(sport)
+    display = await get_sports_tips()
 
     embed = discord.Embed(
-        title=f"🔥 Top Tips for {sport.replace('_', ' ').title()}",
-        description=f"📅 {datetime.now(pytz.timezone('Europe/London')).strftime('%A %d %B %Y %H:%M')} BST",
-        color=0xff00ff
-    )
-    embed.add_field(name="Tips", value=display, inline=False)
-    embed.set_footer(text="🔥 For entertainment only • Gamble responsibly • 18+")
-    await interaction.followup.send(embed=embed)
-    try: await status_msg.delete()
-    except: pass
-
-@bot.tree.command(name="tipsevent", description="Get 3 tips for a specific event")
-async def tips_event(interaction: discord.Interaction, sport: str, event: str):
-    await interaction.response.defer(thinking=True)
-    status_msg = await interaction.followup.send(get_random_loading_message())
-    
-    display = await get_sports_tips(specific_event=event)
-
-    embed = discord.Embed(
-        title=f"🎯 3 Tips for: {event}",
+        title="🔥 Top Hot Tips",
         description=f"📅 {datetime.now(pytz.timezone('Europe/London')).strftime('%A %d %B %Y %H:%M')} BST",
         color=0xff00ff
     )
@@ -99,7 +75,7 @@ async def on_ready():
     print(f"✅ {bot.user} is ONLINE!")
     try:
         await bot.tree.sync()
-        print("✅ Slash commands synced")
+        print("✅ Commands synced")
     except Exception as e:
         print(f"Sync error: {e}")
 
