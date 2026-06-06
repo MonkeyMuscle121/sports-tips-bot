@@ -32,37 +32,23 @@ def get_random_loading_message():
     import random
     return random.choice(LOADING_MESSAGES)
 
-def clean_response(text: str) -> str:
-    return '\n'.join(line.strip() for line in text.strip().split('\n'))
-
-def format_tips_for_display(tips_list):
-    if not tips_list:
-        return "No upcoming events found in next 72 hours."
-    lines = []
-    for i, tip in enumerate(tips_list, 1):
-        event = tip.get("event", "Unknown Event")
-        selection = tip.get("selection", "Unknown")
-        comment = tip.get("comment", "Decent chance...")
-        lines.append(f"**{i}.** {event}\n**Pick:** {selection}\n**Comment:** {comment}")
-    return "\n\n".join(lines)
-
 async def get_sports_tips(sport: str = None, specific_event: str = None):
     try:
-        async with asyncio.timeout(70):
-            client = AsyncClient(api_key=XAI_API_KEY, timeout=65)
+        async with asyncio.timeout(65):
+            client = AsyncClient(api_key=XAI_API_KEY, timeout=60)
             chat = client.chat.create(
                 model="grok-4.20-reasoning",
                 tools=[web_search(), x_search()],
-                temperature=0.55,
-                max_turns=5,
+                temperature=0.6,
+                max_turns=4,
             )
             
             if specific_event:
-                prompt = f"Give 3 good tips for this specific event: {specific_event}. Be savage and funny."
+                prompt = f"Give 3 good tips for this specific event: {specific_event}. Be savage and funny. Only real upcoming events."
             else:
-                prompt = "Give 4 varied hot tips from different sports for the next 72 hours. Be savage and funny."
+                prompt = "Give 4 varied hot tips from different sports for the next 72 hours. Be savage and funny. Only real upcoming events."
             
-            chat.append(system("You are a savage, cheeky AI betting bot. ONLY use real upcoming events. Be brutally funny."))
+            chat.append(system("You are a savage, cheeky AI betting bot. Only use real future events. Be brutally funny."))
             chat.append(user(prompt))
             response = await chat.sample()
             
