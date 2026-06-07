@@ -1,5 +1,5 @@
 discord.py>=2.0
 requests
-python-dotenv
 xai-sdk
 aiohttp
+python-dotenv
