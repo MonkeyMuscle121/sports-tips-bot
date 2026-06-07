@@ -10,56 +10,48 @@ XAI_KEY = os.getenv('XAI_API_KEY')
 async def generate_hot_tips(sport: str, events: list):
     client = AsyncClient(api_key=XAI_KEY)
     
-    current_date = datetime.utcnow().strftime("%B %d, %Y")
+    current_date = datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
     
-    events_text = "\n".join([f"- {e.get('match')} on {e.get('date', 'TBD')}" for e in events]) if events else "No API events found."
+    events_text = "\n".join([f"- {e.get('match')} on {e.get('date', 'TBD')}" for e in events]) if events else "No events returned from APIs."
 
     prompt = f"""
-You are a STRICT savage sports tipster. Today's date is {current_date}.
+You are a STRICT savage sports betting analyst. Current real date/time: {current_date}.
 
 Sport: {sport.upper()}
 
-REAL CURRENT UFC CARD (June 6, 2026 - Muhammad vs Bonfim):
-- Belal Muhammad vs Gabriel Bonfim (Main Event)
-- Brendan Allen vs Edmen Shahbazyan
-- Fares Ziam vs Tom Nolan
-- Bryce Mitchell vs Victor Henry / Santiago Luna
-- Other prelims/main card fights happening TODAY.
+STRICT RULES - FOLLOW EXACTLY:
+- ONLY analyze and tip events that are scheduled in the next 48 hours from now.
+- Use ONLY the real events provided below. Do NOT hallucinate or add extra fights.
+- If the list is short, still create exactly 4 tips from what's available or note limitations.
+- Be brutally savage and roasting in the write-ups.
 
-STRICT RULES:
-- ONLY use fights from the actual current card above.
-- Do NOT invent or use future fights (no Islam, no O'Malley, no Shavkat, etc.).
-- Generate EXACTLY 4 hot tips from the real card.
+Real upcoming events (next 48h):
+{events_text}
 
-Output ONLY valid JSON array. No other text.
+Output **EXACTLY** 4 tips in valid JSON array format only. No extra text, no explanations.
 
+Format:
 [
-  {{"match": "Exact Fighter A vs Fighter B", "tip": "Specific bet", "writeup": "Brutally savage roasting write-up"}}
+  {{"match": "Exact Event Name", "tip": "Specific recommendation (e.g. Fighter A by Decision)", "writeup": "Savage roasting write-up here"}}
 ]
 """
 
     try:
         chat = client.chat.create(model="grok-4")
-        chat.append(system("You are Grok. Respond with clean valid JSON array ONLY. No explanations."))
+        chat.append(system("You are Grok. Respond with clean valid JSON array ONLY. Never add extra text."))
         chat.append(user(prompt))
         
         response = await chat.sample()
-        content = response.content if hasattr(response, 'content') else str(response)
+        content = getattr(response, 'content', str(response))
         
-        # Force JSON extraction
+        # Robust JSON extraction
         start = content.find('[')
         end = content.rfind(']') + 1
         json_str = content[start:end] if start >= 0 else content
-        
         tips = json.loads(json_str)
+        
         return tips[:4]
         
     except Exception as e:
         logging.error(f"Grok error: {e}")
-        # Hard fallback with real fights
-        return [
-            {"match": "Belal Muhammad vs Gabriel Bonfim", "tip": "Muhammad by Decision", "writeup": "Bonfim is a hype job getting fed to the king. Bet against the Brazilian and enjoy watching him get outgrinded."},
-            {"match": "Brendan Allen vs Edmen Shahbazyan", "tip": "Allen by Submission", "writeup": "Edmen’s chin is made of paper. Brendan will drag him to the mat and choke him out like a training dummy."},
-            {"match": "Fares Ziam vs Tom Nolan", "tip": "Ziam by Decision", "writeup": "Nolan is all hype, no finish. Ziam’s technical striking will school him for 3 rounds."},
-            {"match": "Bryce Mitchell vs Victor Henry", "tip": "Mitchell by Decision", "writeup": "Bryce is a grappling demon. Henry will get smothered and cry about it after."}
-        ]
+        return [{"match": "Data Issue", "tip": "Try again soon", "writeup": "Grok had trouble parsing strict 48h window. Check logs."}] * 4
