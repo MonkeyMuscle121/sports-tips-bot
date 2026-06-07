@@ -26,7 +26,7 @@ class SportSelect(Select):
     async def callback(self, interaction: discord.Interaction):
         sport = self.values[0]
         await interaction.response.edit_message(
-            content="**Loading Real Upcoming Events from Grok AI** ⏳ (up to 45 seconds)", 
+            content="**Loading Real Upcoming Events from Grok AI** ⏳ (up to 45s) — Strict next 72h only", 
             view=None
         )
         
@@ -42,30 +42,30 @@ class SportSelect(Select):
                 color=0xFFD700,
                 timestamp=datetime.now()
             )
-            embed.set_footer(text="Powered by Grok AI • Strict 72h Window")
+            embed.set_footer(text="Powered by Grok AI via XAI • Strict 72h Window")
             
             for i, tip in enumerate(tips, 1):
                 embed.add_field(
                     name=f"Tip #{i} — {tip.get('match', 'Event')}",
-                    value=f"**Rec:** {tip.get('tip', 'N/A')}\n\n**Savage Write-up:**\n{tip.get('writeup', 'No write-up')}",
+                    value=f"**Rec:** {tip.get('tip', 'N/A')}\n\n**Savage Write-up:**\n{tip.get('writeup', 'No write-up available.')}",
                     inline=False
                 )
             
             await interaction.followup.send(embed=embed)
         except Exception as e:
-            logging.error(f"Error: {e}")
-            await interaction.followup.send(f"❌ Error: {str(e)[:300]}")
+            logging.error(f"Error generating tips: {e}")
+            await interaction.followup.send(f"❌ Error generating tips: {str(e)[:400]}")
 
-@tree.command(name="tips", description="Get 4 savage Grok AI hot tips (next 72 hours)")
+@tree.command(name="tips", description="Get 4 savage Grok AI hot tips for upcoming events (next 72 hours)")
 async def tips_cmd(interaction: discord.Interaction):
     view = View(timeout=120)
     view.add_item(SportSelect())
-    await interaction.response.send_message("Select a sport:", view=view)
+    await interaction.response.send_message("Select a sport for real upcoming hot tips:", view=view)
 
 @client.event
 async def on_ready():
-    await tree.sync()
-    print(f'✅ Bot ready as {client.user} | Commands synced')
+    await tree.sync()  # Syncs global + guild commands
+    print(f'✅ Bot is ready as {client.user}! Commands synced.')
 
 if __name__ == "__main__":
     client.run(os.getenv('DISCORD_TOKEN'))
