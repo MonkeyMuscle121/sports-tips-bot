@@ -29,28 +29,18 @@ async def get_upcoming_events(sport: str, limit: int = 20):
                     })
 
         else:
-            # TheSportsDB - Better coverage with correct league IDs
-            league_map = {
-                "ufc": "4443",          # Official UFC league ID
-                "boxing": "4400",
-                "tennis": "4396",
-                "darts": "4420",
-                "basketball": "4387"    # NBA
-            }
-            
+            # TheSportsDB for other sports
+            league_map = {"ufc": "4443", "basketball": "4387", "boxing": "4400", "tennis": "4396", "darts": "4420"}
             lid = league_map.get(sport_lower, "4328")
             
-            # Try league next + general next
             urls = [
                 f"https://www.thesportsdb.com/api/v1/json/{SPORTSDB_KEY}/eventsnextleague.php?id={lid}",
-                f"https://www.thesportsdb.com/api/v1/json/{SPORTSDB_KEY}/eventsnext.php?id=133602"  # popular fallback
+                f"https://www.thesportsdb.com/api/v1/json/{SPORTSDB_KEY}/eventsnext.php?id=133602"
             ]
-            
             for url in urls:
                 resp = requests.get(url, timeout=12)
                 if resp.status_code == 200:
-                    data = resp.json().get('events', [])[:limit]
-                    for e in data:
+                    for e in resp.json().get('events', [])[:limit]:
                         ts = e.get('strTimestamp')
                         if ts:
                             try:
@@ -64,9 +54,9 @@ async def get_upcoming_events(sport: str, limit: int = 20):
                             except:
                                 pass
 
-        logging.info(f"✅ Fetched {len(events)} real events for {sport}")
+        logging.info(f"✅ Pulled {len(events)} real events for {sport}")
         return events[:limit]
 
     except Exception as e:
-        logging.error(f"Data fetch error for {sport}: {e}")
+        logging.error(f"Data fetch error: {e}")
         return []
