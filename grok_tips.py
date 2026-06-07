@@ -3,7 +3,7 @@ import json
 import logging
 from xai_sdk import AsyncClient
 from xai_sdk.chat import system, user
-from datetime import datetime
+from datetime import datetime, timedelta
 
 XAI_KEY = os.getenv('XAI_API_KEY')
 
@@ -11,36 +11,37 @@ async def generate_hot_tips(sport: str, events: list):
     client = AsyncClient(api_key=XAI_KEY)
     
     current_date = datetime.utcnow().strftime("%B %d, %Y at %H:%M UTC")
+    cutoff_date = (datetime.utcnow() + timedelta(hours=72)).strftime("%B %d, %Y")
     
     prompt = f"""
-You are an elite savage sports tipster with real-time knowledge.
-
-Current date/time: {current_date}
+You are a STRICT savage sports tipster. Current exact date and time: {current_date}.
 
 Sport: {sport.upper()}
 
-TASK:
-1. Identify all REAL upcoming events/matches in the next 72 hours (strictly from now).
-2. Analyse form, stats, history, injuries, H2H, betting trends, etc.
-3. Select the 4 hottest tips.
+CRITICAL RULES (DO NOT BREAK):
+- ONLY use events scheduled strictly within the next 72 hours from now.
+- Do NOT include any events after {cutoff_date}.
+- Do NOT hallucinate big name fights that are not actually happening in the next 72 hours.
+- If the schedule is quiet, use only real minor/upcoming events or be honest.
+- Analyse real form, stats, and matchups for the actual upcoming events.
 
-Output **ONLY** a valid JSON array with exactly 4 tips. No extra text.
+Generate **EXACTLY 4** hot tips.
 
-Format:
+Output ONLY valid JSON array, nothing else:
 [
-  {{"match": "Exact Event Name", "tip": "Specific recommendation (e.g. Fighter A by Decision, Over 2.5 Goals)", "writeup": "Brutally savage, roasting, funny write-up (2-4 sentences)"}}
+  {{"match": "Exact Event/Fight Name", "tip": "Specific recommendation", "writeup": "Brutally savage, roasting, funny write-up (2-4 sentences)"}}
 ]
 """
 
     try:
         chat = client.chat.create(model="grok-4")
-        chat.append(system("You are Grok. You MUST respond with clean valid JSON array ONLY. No explanations, no markdown."))
+        chat.append(system("You are Grok. Respond with clean valid JSON array ONLY. No extra text, no explanations."))
         chat.append(user(prompt))
         
         response = await chat.sample()
         content = response.content if hasattr(response, 'content') else str(response)
         
-        # Robust JSON extraction
+        # Strong JSON extraction
         start = content.find('[')
         end = content.rfind(']') + 1
         json_str = content[start:end] if start >= 0 else content
@@ -50,4 +51,6 @@ Format:
         
     except Exception as e:
         logging.error(f"Grok error: {e}")
-        return [{"match": "Current Card", "tip": "Loading real events...", "writeup": "Grok analysing live data..."}] * 4
+        return [
+            {"match": "Limited Schedule", "tip": "Check again later", "writeup": "Not many major events in the strict next 72-hour window right now."}
+        ] * 4
